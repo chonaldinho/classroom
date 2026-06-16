@@ -2,9 +2,8 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <!-- 모바일에서 사용자가 원하면 손가락으로 더 확대/축소할 수 있도록 뷰포트 설정 수정 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>우리 반 자리 배치 - 모바일 한눈에 보기 에디션</title>
+    <title>우리 반 자리 배치 - 한눈에 좌우 고정 에디션</title>
     <style>
         :root { --bg-color: #f4f6f9; }
         body {
@@ -13,32 +12,37 @@
             margin: 0; padding: 10px;
             display: flex; flex-direction: column; align-items: center;
             box-sizing: border-box;
+            overflow-x: hidden; /* 모바일에서 불필요한 좌우 스크롤 방지 */
         }
         h1 { margin: 10px 0 5px 0; color: #333; font-size: 20px; text-align: center; }
         .mode-select { margin-bottom: 15px; font-size: 13px; text-align: center; line-height: 1.5; }
         
-        /* 전체 레이아웃 반응형 배치 */
+        /* 💡 [핵심] 모바일에서도 축소 비율 기준점이 깨지지 않도록 전체를 감싸는 래퍼 추가 */
+        .stage-wrapper {
+            width: 1440px; /* PC 기준 전체 콘텐츠의 원본 가로 폭 고정 */
+            flex-shrink: 0;
+            transform-origin: top center; /* 상단 중앙 기준 전체 축소 */
+        }
+
+        /* 내부 레이아웃 - 좌우 배치를 절대 깨뜨리지 않고 유지 */
         .game-container {
-            display: flex; gap: 20px; max-width: 1400px; width: 100%;
+            display: flex; gap: 25px; width: 100%;
             justify-content: center; align-items: flex-start;
             box-sizing: border-box;
-            padding-bottom: 50px;
+            padding: 10px;
         }
         
-        /* 💡 [핵심] 모바일/작은 화면에서 보드판을 한눈에 볼 수 있도록 자동 축소 적용 */
+        /* 좌측 보드판 구역 */
         .board-container {
-            background: #fff; padding: 15px; border-radius: 12px;
+            background: #fff; padding: 20px; border-radius: 12px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.15);
             flex-shrink: 0;
-            transform-origin: top center; /* 위쪽 중앙을 기준으로 축소 */
         }
-        
-        /* 기본 PC 크기: 7행 x 140px 격자 */
         .classroom-grid {
             display: grid; grid-template-columns: repeat(7, 140px); grid-template-rows: repeat(7, 140px); gap: 10px;
         }
         
-        /* 카드 격자 셀 스타일 */
+        /* 격자 셀 기본 스타일 */
         .grid-cell {
             border: 1px dashed #bbb; border-radius: 10px;
             display: flex; align-items: center; justify-content: center;
@@ -52,10 +56,10 @@
             border: 3px dashed #4caf50 !important; background-color: #e8f5e9 !important;
         }
 
-        /* 호버 시 초대형 확대 (한눈에 보기 상태에서도 크게 팝업됨) */
+        /* 카드 오버/터치 시 초대형 팝업 확대 (축소된 화면에서도 뚫고 크게 보임) */
         .grid-cell:not(:empty):hover {
             transform: scale(2.3);
-            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.5);
             z-index: 999;
             background-color: #fff;
             border: 1px solid #ccc;
@@ -69,9 +73,9 @@
             z-index: 10; pointer-events: none;
         }
 
-        /* 우측 제어 상태창 */
+        /* 우측 제어 상태창 및 카드 선택(마켓) 구역 고정 */
         .status-panel {
-            width: 350px; background: white; padding: 20px; border-radius: 12px;
+            width: 360px; background: white; padding: 20px; border-radius: 12px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.15); display: flex; flex-direction: column; gap: 15px;
             flex-shrink: 0; box-sizing: border-box;
         }
@@ -91,21 +95,21 @@
         .market-slots { display: flex; gap: 8px; justify-content: space-between; }
         
         .market-slot { 
-            width: 90px; height: 90px; border: 2px solid #ccc; background: #fff; border-radius: 8px; 
+            width: 95px; height: 95px; border: 2px solid #ccc; background: #fff; border-radius: 8px; 
             display: flex; justify-content: center; align-items: center; cursor: pointer;
             position: relative; box-shadow: 0 2px 4px rgba(0,0,0,0.05); user-select: none;
             transition: transform 0.2s ease, border-color 0.15s;
             z-index: 1;
         }
         .market-slot.selected { border-color: #2e7d32; box-shadow: 0 0 10px rgba(46, 125, 50, 0.7); }
-        .market-slot:hover { transform: scale(1.6); z-index: 10; background-color: #fff; }
+        .market-slot:hover { transform: scale(1.7); z-index: 10; background-color: #fff; }
 
         .preview-slot { 
-            width: 90px; height: 90px; border: 2px dashed #999; background: #e0e0e0; border-radius: 8px; 
+            width: 95px; height: 95px; border: 2px dashed #999; background: #e0e0e0; border-radius: 8px; 
             display: flex; justify-content: center; align-items: center; opacity: 0.8;
             transition: transform 0.2s ease; position: relative; z-index: 1;
         }
-        .preview-slot:hover { transform: scale(1.6); opacity: 1; z-index: 10; background-color: #fff; }
+        .preview-slot:hover { transform: scale(1.7); opacity: 1; z-index: 10; background-color: #fff; }
 
         .card-img-wrap { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; pointer-events: none; overflow: hidden; border-radius: 8px; }
         .card-img-wrap img { width: 100%; height: 100%; object-fit: contain; display: block; -webkit-user-drag: none; }
@@ -113,19 +117,6 @@
         .reset-btn { padding: 12px; background: #d32f2f; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; }
         .turn-badge { display: inline-block; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; color: white; }
         .card-info-box { background: #fffde7; border: 1px solid #fbc02d; padding: 10px; border-radius: 6px; font-size: 12px; display: none; }
-
-        /* 📱 모바일 미디어 쿼리: 화면 폭이 1000px 이하로 좁아질 때 작동 */
-        @media (max-width: 1000px) {
-            .game-container {
-                flex-direction: column; /* 보드판 아래에 상태창이 오도록 배치 변경 */
-                align-items: center;
-                gap: 10px;
-            }
-            .status-panel {
-                width: 100%; /* 상태창이 가로로 넓게 꽉 차도록 변경 */
-                max-width: 500px;
-            }
-        }
     </style>
 </head>
 <body>
@@ -136,57 +127,57 @@
         <label><input type="radio" name="gameMode" value="comp" onchange="initGame()"> 경쟁 모드 (전체 포함)</label>
     </div>
 
-    <div class="game-container">
-        <!-- 좌측: 교실 보드판 (JS에서 화면 크기에 맞춰 축소 비율을 실시간 조정함) -->
-        <div class="board-container" id="boardContainer">
-            <div class="classroom-grid" id="classroomGrid"></div>
-        </div>
-
-        <!-- 우측: 상태 패널 -->
-        <div class="status-panel">
-            <div class="score-box">
-                <div class="score-row">
-                    <span class="score-title">🔵 파란색 점수</span>
-                    <span class="score-val blue-text" id="blueScore">0점</span>
-                </div>
-                <div class="score-row">
-                    <span class="score-title">🟠 주황색 점수</span>
-                    <span class="score-val orange-text" id="orangeScore">0점</span>
-                </div>
-                <div class="score-row total">
-                    <span class="score-title" style="font-size: 14px; color:#222;">🟢 교실 총점</span>
-                    <span class="score-num-total" id="totalScore">0</span>
-                </div>
-                <div class="rank-text" id="gameRank">카드를 배치해 주세요</div>
+    <div class="stage-wrapper" id="stageWrapper">
+        <div class="game-container">
+            <div class="board-container">
+                <div class="classroom-grid" id="classroomGrid"></div>
             </div>
 
-            <div class="card-info-box" id="cardInfoBox"></div>
+            <div class="status-panel">
+                <div class="score-box">
+                    <div class="score-row">
+                        <span class="score-title">🔵 파란색 점수</span>
+                        <span class="score-val blue-text" id="blueScore">0점</span>
+                    </div>
+                    <div class="score-row">
+                        <span class="score-title">🟠 주황색 점수</span>
+                        <span class="score-val orange-text" id="orangeScore">0점</span>
+                    </div>
+                    <div class="score-row total">
+                        <span class="score-title" style="font-size: 14px; color:#222;">🟢 교실 총점</span>
+                        <span class="score-num-total" id="totalScore">0</span>
+                    </div>
+                    <div class="rank-text" id="gameRank">카드를 배치해 주세요</div>
+                </div>
 
-            <div class="market-container">
-                <div style="display: flex; align-items: center; justify-content: space-between;">
-                    <span class="market-title">🎁 선택 카드</span>
-                    <span id="turnColorBadge" class="turn-badge">파란색 턴</span>
+                <div class="card-info-box" id="cardInfoBox"></div>
+
+                <div class="market-container">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <span class="market-title">🎁 선택 카드</span>
+                        <span id="turnColorBadge" class="turn-badge">파란색 턴</span>
+                    </div>
+                    <div class="market-slots">
+                        <div class="market-slot" id="market-0" onclick="selectMarketCard(0)"></div>
+                        <div class="market-slot" id="market-1" onclick="selectMarketCard(1)"></div>
+                        <div class="market-slot" id="market-2" onclick="selectMarketCard(2)"></div>
+                    </div>
+                    <div><span class="market-title">🔮 다음 카드 예고</span></div>
+                    <div style="display: flex; gap: 15px; align-items: center;">
+                        <div class="preview-slot" id="deckPreview"></div>
+                        <div id="deckCount" style="font-size: 12px; font-weight:bold;">남은 더미: --장</div>
+                    </div>
                 </div>
-                <div class="market-slots">
-                    <div class="market-slot" id="market-0" onclick="selectMarketCard(0)"></div>
-                    <div class="market-slot" id="market-1" onclick="selectMarketCard(1)"></div>
-                    <div class="market-slot" id="market-2" onclick="selectMarketCard(2)"></div>
-                </div>
-                <div><span class="market-title">🔮 다음 카드 예고</span></div>
-                <div style="display: flex; gap: 15px; align-items: center;">
-                    <div class="preview-slot" id="deckPreview"></div>
-                    <div id="deckCount" style="font-size: 12px; font-weight:bold;">남은 더미: --장</div>
-                </div>
+
+                <button class="reset-btn" onclick="initGame()">게임 재시작</button>
             </div>
-
-            <button class="reset-btn" onclick="initGame()">게임 재시작</button>
         </div>
     </div>
 
     <script>
         const cardTemplates = [
             { id: 1, tags: ['남자', '모범생'], desc: "맨 앞줄 5점, 두번째 줄 3점, 세번째 줄 1점" },
-            { id: 2, tags: ['남자', '시끄러움'], desc: "상하좌우에 모범생 태그 1명:1점 / 2명:4점 / 3명:7점 / 4명:10점" },
+            { id: 2, tags: ['남자', '시끄러움'], desc: "상하좌우에 모범생태그 1명:1점 / 2명:4점 / 3명:7점 / 4명:10점" },
             { id: 3, tags: ['남자'], desc: "상하좌우대각선(8칸)에 게임 태그 1개당 2점" },
             { id: 4, tags: ['남자', '게임'], desc: "가장 좌측 5점, 그 다음 3점, 그 다음 1점, 가장 우측 0점" },
             { id: 5, tags: ['남자', '게임'], desc: "상하좌우에 시끄러움 없으면 7점, 1명이면 3점, 2명 이상 0점" },
@@ -213,30 +204,28 @@
         let currentGlobalColor = 'blue';
         let isGameOver = false;
 
-        // 💡 [화면 한눈에 보기 스크립트] 기기 너비에 맞춰서 보드판 크기를 배율 조정
-        function adjustBoardScale() {
-            const container = document.getElementById('boardContainer');
-            if (!container) return;
+        // 💡 [전체 세트 화면 배율 실시간 최적화 조작 함수]
+        function adjustFullGameScale() {
+            const wrapper = document.getElementById('stageWrapper');
+            if (!wrapper) return;
             
-            // 원래 보드판 세팅 가로 폭 (격자 크기 + 패딩 합산 약 1070px)
-            const originalWidth = 1070; 
+            const originalWidth = 1440; // 기준 원본 가로 전체 크기
             const windowWidth = window.innerWidth;
 
             if (windowWidth < originalWidth) {
-                // 화면 크기에 맞출 축소 비율 계산 (양옆 여백 20px 제외)
-                const scale = (windowWidth - 20) / originalWidth;
-                container.style.transform = `scale(${scale})`;
+                // 모바일 가로폭에 맞춰 전체 세트를 비율 축소 (양쪽 15px 정도 여백 고려)
+                const scale = (windowWidth - 15) / originalWidth;
+                wrapper.style.transform = `scale(${scale})`;
                 
-                // 스케일 축소로 인해 아래쪽에 생기는 빈 공간 채우기 마진 설정
-                container.style.marginBottom = `${(originalWidth * scale) - originalWidth}px`;
+                // 비율 변환으로 축소되면서 아래쪽에 누적되는 빈 마진 레이아웃 보정
+                wrapper.style.marginBottom = `${(originalWidth * scale) - originalWidth}px`;
             } else {
-                container.style.transform = 'none';
-                container.style.marginBottom = '0px';
+                wrapper.style.transform = 'none';
+                wrapper.style.marginBottom = '0px';
             }
         }
 
-        // 화면 크기가 바뀌거나 회전할 때 실시간으로 크기 리사이즈 실행
-        window.addEventListener('resize', adjustBoardScale);
+        window.addEventListener('resize', adjustFullGameScale);
 
         function initGame() {
             boardMap = Array(GRID_SIZE * GRID_SIZE).fill(null);
@@ -259,8 +248,8 @@
             updateValidPlacements();
             calculateRealTimeScore();
             
-            // 게임 시작 직후 크기 맞춤 한번 실행
-            setTimeout(adjustBoardScale, 50);
+            // 화면 렌더링 후 스케일 계산 즉시 반영
+            setTimeout(adjustFullGameScale, 50);
         }
 
         function buildEmptyGrid() {
@@ -405,7 +394,7 @@
                 document.getElementById('turnColorBadge').innerText = "게임 종료";
                 document.getElementById('turnColorBadge').style.backgroundColor = "#444";
                 for(let i=0; i<3; i++) {
-                    document.getElementById(`market-${i}`).innerHTML = '<b style="color:#aaa; font-size:11px;">종료</b>';
+                    document.getElementById(`market-${i}`).innerHTML = '<b style="color:#aaa; font-size:12px;">종료</b>';
                     document.getElementById(`market-${i}`).classList.remove('selected');
                 }
             }
